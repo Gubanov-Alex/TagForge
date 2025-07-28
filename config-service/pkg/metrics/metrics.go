@@ -64,7 +64,7 @@ func New() *Metrics {
 func (m *Metrics) Middleware() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		start := time.Now()
-		
+
 		// Increment active connections
 		m.activeConnections.Inc()
 		defer m.activeConnections.Dec()
@@ -77,7 +77,7 @@ func (m *Metrics) Middleware() gin.HandlerFunc {
 		statusCode := strconv.Itoa(c.Writer.Status())
 		method := c.Request.Method
 		endpoint := c.FullPath()
-		
+
 		// If no route matched, use the raw path
 		if endpoint == "" {
 			endpoint = c.Request.URL.Path

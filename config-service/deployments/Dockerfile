@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY config-service/deployments .
+COPY . .
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build \

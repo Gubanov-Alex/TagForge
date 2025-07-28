@@ -15,8 +15,8 @@ import (
 	"github.com/company/config-service/internal/logger"
 	"github.com/company/config-service/pkg/metrics"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -36,8 +36,8 @@ var (
 // @contact.url http://www.example.com/support
 // @contact.email support@example.com
 
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
 
 // @host localhost:8080
 // @BasePath /api/v1
@@ -141,13 +141,9 @@ func main() {
 	v1 := router.Group("/api/v1")
 	{
 		// TODO: Add your API handlers here
-		v1.GET("/ping", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "pong",
-				"version": version,
-				"time":    time.Now().Format(time.RFC3339),
-			})
-		})
+		v1.GET("/ping", pingHandler)
+		v1.GET("/environments", getEnvironments(db))
+		v1.GET("/tags", getTags(db))
 	}
 
 	// Create HTTP server
@@ -281,78 +277,108 @@ func generateRequestID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-// pkg/errors/errors.go
-package errors
-
-import (
-	"errors"
-	"fmt"
-)
-
-// Common application errors
-var (
-	ErrNotFound          = errors.New("resource not found")
-	ErrAlreadyExists     = errors.New("resource already exists")
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrUnauthorized      = errors.New("unauthorized")
-	ErrForbidden         = errors.New("forbidden")
-	ErrInternalServer    = errors.New("internal server error")
-	ErrServiceUnavailable = errors.New("service unavailable")
-)
-
-// AppError represents an application error with additional context
-type AppError struct {
-	Type    string            `json:"type"`
-	Message string            `json:"message"`
-	Details map[string]string `json:"details,omitempty"`
-	Err     error             `json:"-"`
+// pingHandler godoc
+// @Summary Ping endpoint
+// @Description Returns pong with version and timestamp
+// @Tags health
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/ping [get]
+func pingHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "pong",
+		"version": version,
+		"time":    time.Now().Format(time.RFC3339),
+	})
 }
 
-// Error implements the error interface
-func (e *AppError) Error() string {
-	if e.Err != nil {
-		return fmt.Sprintf("%s: %v", e.Message, e.Err)
-	}
-	return e.Message
-}
+// getEnvironments godoc
+// @Summary Get all environments
+// @Description Retrieve all available environments
+// @Tags environments
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/environments [get]
+func getEnvironments(db *database.Connection) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.DB.Query("SELECT id, name, slug, description, active, priority FROM environments ORDER BY priority DESC")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
 
-// Unwrap returns the underlying error
-func (e *AppError) Unwrap() error {
-	return e.Err
-}
+		var environments []gin.H
+		for rows.Next() {
+			var id int64
+			var name, slug, description string
+			var active bool
+			var priority int
 
-// NewAppError creates a new application error
-func NewAppError(errorType, message string, err error) *AppError {
-	return &AppError{
-		Type:    errorType,
-		Message: message,
-		Err:     err,
-	}
-}
+			if err := rows.Scan(&id, &name, &slug, &description, &active, &priority); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
 
-// NewValidationError creates a validation error with field details
-func NewValidationError(fieldErrors map[string]string) *AppError {
-	return &AppError{
-		Type:    "validation_error",
-		Message: "Validation failed",
-		Details: fieldErrors,
-	}
-}
+			environments = append(environments, gin.H{
+				"id":          id,
+				"name":        name,
+				"slug":        slug,
+				"description": description,
+				"active":      active,
+				"priority":    priority,
+			})
+		}
 
-// NewNotFoundError creates a not found error
-func NewNotFoundError(resource string) *AppError {
-	return &AppError{
-		Type:    "not_found",
-		Message: fmt.Sprintf("%s not found", resource),
-		Err:     ErrNotFound,
+		c.JSON(http.StatusOK, gin.H{
+			"environments": environments,
+			"total":        len(environments),
+		})
 	}
 }
 
-// NewConflictError creates a conflict error
-func NewConflictError(resource string) *AppError {
-	return &AppError{
-		Type:    "conflict",
-		Message: fmt.Sprintf("%s already exists", resource),
-		Err:     ErrAlreadyExists,
+// getTags godoc
+// @Summary Get all tags
+// @Description Retrieve all available tags
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/tags [get]
+func getTags(db *database.Connection) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.DB.Query("SELECT id, name, description, color FROM tags ORDER BY name")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var tags []gin.H
+		for rows.Next() {
+			var id int64
+			var name, description, color string
+
+			if err := rows.Scan(&id, &name, &description, &color); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			tags = append(tags, gin.H{
+				"id":          id,
+				"name":        name,
+				"description": description,
+				"color":       color,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"tags":  tags,
+			"total": len(tags),
+		})
 	}
 }

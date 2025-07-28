@@ -5,7 +5,7 @@ APP_NAME := config-service
 BINARY_NAME := main
 DOCKER_COMPOSE_FILE := deployments/docker-compose.yml
 MIGRATION_PATH := migrations
-DATABASE_URL := postgres://postgres:postgres@localhost:5432/config_service?sslmode=disable
+DATABASE_URL := postgres://postgres:postgres@localhost:5431/config_service?sslmode=disable
 
 # Colors for output
 RED := \033[0;31m
@@ -284,3 +284,32 @@ setup: install-tools up migrate-up swagger ## Complete project setup
 	@echo "  - Grafana: http://localhost:3000"
 	@echo "  - Run tests: make test"
 	@echo "  - View logs: make logs-app"
+
+##@ Infrastructure Only
+up-infra: ## Start only infrastructure services (no app)
+	@echo "$(BLUE)Starting infrastructure services...$(RESET)"
+	docker-compose -f $(DOCKER_COMPOSE_FILE) up -d postgres redis zookeeper kafka kafka-ui
+	@echo "$(GREEN)Infrastructure services started!$(RESET)"
+	@echo "$(YELLOW)Waiting for services to be ready...$(RESET)"
+	@sleep 30
+	@make status-infra
+
+status-infra: ## Show status of infrastructure services only
+	@echo "$(CYAN)Infrastructure Status:$(RESET)"
+	docker-compose -f $(DOCKER_COMPOSE_FILE) ps postgres redis zookeeper kafka kafka-ui
+
+install-migrate: ## Install migrate tool
+	@echo "$(BLUE)Installing golang-migrate...$(RESET)"
+	curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xvz
+	sudo mv migrate /usr/local/bin/
+	@echo "$(GREEN)golang-migrate installed!$(RESET)"
+
+quick-start: install-migrate up-infra migrate-up ## Quick start for development
+	@echo "$(GREEN)Quick start completed!$(RESET)"
+	@echo "$(CYAN)Infrastructure ready:$(RESET)"
+	@echo "  PostgreSQL: localhost:5431"
+	@echo "  Redis: localhost:6379" 
+	@echo "  Kafka: localhost:9092"
+	@echo "  Kafka UI: http://localhost:8090"
+	@echo ""
+	@echo "$(CYAN)Next step: make run$(RESET)"

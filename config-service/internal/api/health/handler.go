@@ -2,7 +2,6 @@ package health
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -10,14 +9,14 @@ import (
 	"github.com/company/config-service/internal/logger"
 	"github.com/company/config-service/internal/model"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // Handler handles health check endpoints
 type Handler struct {
-	db     *database.Connection
-	redis  *redis.Client
-	logger *logger.Logger
+	db      *database.Connection
+	redis   *redis.Client
+	logger  *logger.Logger
 	version string
 }
 
