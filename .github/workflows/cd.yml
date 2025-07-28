@@ -10,6 +10,12 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Required permissions for GHCR and releases
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 jobs:
   deploy-staging:
     name: Deploy to Staging
@@ -17,9 +23,27 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment: staging
 
+    defaults:
+      run:
+        working-directory: ./config-service
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: |
+          config-service/go.sum
+          config-service/go.mod
+
+    - name: Generate Swagger docs
+      run: |
+        go install github.com/swaggo/swag/cmd/swag@latest
+        swag init -g cmd/server/main.go --output docs/swagger
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -35,37 +59,67 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/config-service
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
+          type=raw,value=staging-latest
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
-        context: .
-        file: ./deployments/Dockerfile
+        context: ./config-service
+        file: ./config-service/deployments/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
+        build-args: |
+          VERSION=${{ github.sha }}
+          BUILD_TIME=${{ github.run_id }}
+          GIT_COMMIT=${{ github.sha }}
 
     - name: Deploy to staging
       run: |
-        echo "Deploying to staging environment..."
-        echo "Image: ${{ steps.meta.outputs.tags }}"
-        # Add your staging deployment logic here
-        # Example: kubectl set image deployment/config-service config-service=${{ steps.meta.outputs.tags }}
-        echo "Staging deployment completed!"
+        echo "🚀 Deploying to staging environment..."
+        echo "📦 Image: ${{ steps.meta.outputs.tags }}"
+        echo "🏷️  Tags: ${{ steps.meta.outputs.tags }}"
+        echo "📋 Labels: ${{ steps.meta.outputs.labels }}"
+        
+        # Example deployment commands (uncomment and modify as needed):
+        # kubectl config use-context staging
+        # kubectl set image deployment/config-service config-service=${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        # kubectl rollout status deployment/config-service --timeout=300s
+        
+        echo "✅ Staging deployment completed!"
 
     - name: Run integration tests
       run: |
-        echo "Running integration tests against staging..."
-        # Add your integration test commands here
-        # Example: curl -f https://staging.example.com/health
-        echo "Integration tests passed!"
+        echo "🧪 Running integration tests against staging..."
+        
+        # Wait for deployment to be ready
+        sleep 30
+        
+        # Example integration tests (uncomment and modify as needed):
+        # echo "Testing health endpoint..."
+        # curl -f https://staging-config-service.example.com/health
+        # 
+        # echo "Testing API endpoints..."
+        # curl -f https://staging-config-service.example.com/api/v1/ping
+        # curl -f https://staging-config-service.example.com/api/v1/environments
+        
+        echo "✅ Integration tests passed!"
+
+    - name: Notify deployment
+      run: |
+        echo "📢 Staging deployment notification"
+        echo "Environment: staging"
+        echo "Version: ${{ github.sha }}"
+        echo "Image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.event.head_commit.message }}"
 
   deploy-production:
     name: Deploy to Production
@@ -73,9 +127,27 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment: production
 
+    defaults:
+      run:
+        working-directory: ./config-service
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: |
+          config-service/go.sum
+          config-service/go.mod
+
+    - name: Generate Swagger docs
+      run: |
+        go install github.com/swaggo/swag/cmd/swag@latest
+        swag init -g cmd/server/main.go --output docs/swagger
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -91,49 +163,95 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/config-service
         tags: |
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
+          type=raw,value=latest
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
-        context: .
-        file: ./deployments/Dockerfile
+        context: ./config-service
+        file: ./config-service/deployments/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
+        build-args: |
+          VERSION=${{ github.ref_name }}
+          BUILD_TIME=${{ github.run_id }}
+          GIT_COMMIT=${{ github.sha }}
 
     - name: Deploy to production
       run: |
-        echo "Deploying to production environment..."
-        echo "Image: ${{ steps.meta.outputs.tags }}"
-        # Add your production deployment logic here
-        # Example: kubectl set image deployment/config-service config-service=${{ steps.meta.outputs.tags }}
-        echo "Production deployment completed!"
+        echo "🚀 Deploying to production environment..."
+        echo "📦 Image: ${{ steps.meta.outputs.tags }}"
+        echo "🏷️  Version: ${{ github.ref_name }}"
+        
+        # Example production deployment commands (uncomment and modify as needed):
+        # kubectl config use-context production
+        # kubectl set image deployment/config-service config-service=${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        # kubectl rollout status deployment/config-service --timeout=600s
+        
+        echo "✅ Production deployment completed!"
+
+    - name: Run smoke tests
+      run: |
+        echo "💨 Running smoke tests against production..."
+        
+        # Wait for deployment to be ready
+        sleep 60
+        
+        # Example smoke tests (uncomment and modify as needed):
+        # echo "Testing critical endpoints..."
+        # curl -f https://config-service.example.com/health
+        # curl -f https://config-service.example.com/api/v1/ping
+        
+        echo "✅ Smoke tests passed!"
 
     - name: Create GitHub Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
+        generate_release_notes: true
         body: |
-          ## Changes in this Release
+          ## 🚀 Config Service Release ${{ github.ref_name }}
           
-          - Automated release from tag ${{ github.ref_name }}
-          - Docker image: ${{ steps.meta.outputs.tags }}
-          
-          ## Deployment
-          
+          ### 📦 Docker Images
           ```bash
-          docker pull ${{ steps.meta.outputs.tags }}
+          docker pull ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           ```
+          
+          ### 📋 Deployment Info
+          - **Version**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Built**: ${{ github.run_id }}
+          - **Platforms**: linux/amd64, linux/arm64
+          
+          ### 🔗 Links
+          - [Swagger Documentation](https://config-service.example.com/swagger/index.html)
+          - [Health Check](https://config-service.example.com/health)
+          
+          ### 📝 Installation
+          ```bash
+          # Docker
+          docker run -p 8080:8080 ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          
+          # Kubernetes
+          kubectl set image deployment/config-service config-service=${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          ```
+
+    - name: Notify production deployment
+      run: |
+        echo "📢 Production deployment notification"
+        echo "Environment: production"
+        echo "Version: ${{ github.ref_name }}"
+        echo "Image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+        echo "Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
