@@ -97,6 +97,7 @@ jobs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
+      if: github.event_name == 'push'
       with:
         file: ./config-service/coverage.out
         flags: unittests
@@ -127,6 +128,12 @@ jobs:
         cache-dependency-path: |
           config-service/go.sum
           config-service/go.mod
+
+    # ВАЖНО: Генерируем Swagger документацию перед lint проверкой
+    - name: Generate Swagger docs before lint
+      run: |
+        go install github.com/swaggo/swag/cmd/swag@latest
+        swag init -g cmd/server/main.go --output docs/swagger
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
