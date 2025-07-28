@@ -31,7 +31,7 @@ services:
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: redis-server --appendonly yes
     networks:
       - config-service-network
     healthcheck:
@@ -111,67 +111,6 @@ services:
       - "8090:8080"
     networks:
       - config-service-network
-
-  # Application Service
-  config-service:
-    build:
-      context: ..
-      dockerfile: config-service/deployments/Dockerfile
-    container_name: config-service-app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      # Server Configuration
-      SERVER_HOST: 0.0.0.0
-      SERVER_PORT: 8080
-      SERVER_ENVIRONMENT: development
-
-      # Database Configuration
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: postgres
-      DATABASE_NAME: config_service
-      DATABASE_SSL_MODE: disable
-      DATABASE_MAX_OPEN_CONNS: 25
-      DATABASE_MAX_IDLE_CONNS: 25
-      DATABASE_CONN_MAX_LIFETIME: 5m
-      DATABASE_MIGRATIONS_PATH: file://migrations
-
-      # Redis Configuration
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-
-      # Kafka Configuration
-      KAFKA_BROKERS: kafka:29092
-      KAFKA_TOPIC: config-events
-
-      # Logger Configuration
-      LOGGER_LEVEL: debug
-      LOGGER_FORMAT: console
-
-      # Metrics Configuration
-      METRICS_ENABLED: true
-      METRICS_PATH: /metrics
-    ports:
-      - "8080:8080"
-    volumes:
-      - ../migrations:/app/migrations:ro
-    networks:
-      - config-service-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
 
   # Prometheus for metrics collection
   prometheus:

@@ -127,7 +127,7 @@ func (h *Handler) Liveness(c *gin.Context) {
 
 func (h *Handler) checkDatabase(ctx context.Context) model.ServiceHealthInfo {
 	start := time.Now()
-	
+
 	err := h.db.HealthCheck()
 	latency := time.Since(start)
 
@@ -149,7 +149,7 @@ func (h *Handler) checkDatabase(ctx context.Context) model.ServiceHealthInfo {
 
 func (h *Handler) checkRedis(ctx context.Context) model.ServiceHealthInfo {
 	start := time.Now()
-	
+
 	err := h.redis.Ping(ctx).Err()
 	latency := time.Since(start)
 

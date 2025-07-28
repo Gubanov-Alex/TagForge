@@ -37,7 +37,7 @@ A high-performance microservice for managing tags, their versioning, and deploym
 ## 🏗 Project Structure
 
 ```
-tag-management-api/
+config-service/
 ├── cmd/
 │   └── server/
 │       └── main.go                 # Application entrypoint

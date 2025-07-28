@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	// Import docs for Swagger
+	_ "github.com/company/config-service/docs/swagger"
 	"github.com/company/config-service/internal/api/health"
 	"github.com/company/config-service/internal/config"
 	"github.com/company/config-service/internal/database"
@@ -39,7 +41,7 @@ var (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8080
+// @host localhost:8081
 // @BasePath /api/v1
 
 // @securityDefinitions.apikey BearerAuth
@@ -98,7 +100,7 @@ func main() {
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to Redis")
 	}
@@ -140,7 +142,6 @@ func main() {
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
-		// TODO: Add your API handlers here
 		v1.GET("/ping", pingHandler)
 		v1.GET("/environments", getEnvironments(db))
 		v1.GET("/tags", getTags(db))
@@ -230,7 +231,7 @@ func requestIDMiddleware() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = generateRequestID()
 		}
-		
+
 		c.Header("X-Request-ID", requestID)
 		c.Set("request_id", requestID)
 		c.Next()
@@ -260,14 +261,14 @@ func loggingMiddleware(log *logger.Logger) gin.HandlerFunc {
 		}
 
 		log.InfoWithFields("HTTP request", map[string]interface{}{
-			"request_id":   requestID,
-			"status":       statusCode,
-			"latency":      latency.String(),
-			"client_ip":    clientIP,
-			"method":       method,
-			"path":         path,
-			"user_agent":   userAgent,
-			"body_size":    c.Writer.Size(),
+			"request_id": requestID,
+			"status":     statusCode,
+			"latency":    latency.String(),
+			"client_ip":  clientIP,
+			"method":     method,
+			"path":       path,
+			"user_agent": userAgent,
+			"body_size":  c.Writer.Size(),
 		})
 	}
 }

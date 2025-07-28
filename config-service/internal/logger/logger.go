@@ -5,8 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"	
 )
 
 // Logger wraps zerolog.Logger with additional functionality
