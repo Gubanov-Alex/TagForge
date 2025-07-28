@@ -99,17 +99,17 @@ type CreateTemplateRequest struct {
 
 // UpdateTemplateRequest represents request for updating a template
 type UpdateTemplateRequest struct {
-	Name          *string      `json:"name,omitempty" validate:"omitempty,min=1,max=200"`
-	Description   *string      `json:"description,omitempty" validate:"omitempty,max=1000"`
+	Name          *string       `json:"name,omitempty" validate:"omitempty,min=1,max=200"`
+	Description   *string       `json:"description,omitempty" validate:"omitempty,max=1000"`
 	Format        *ConfigFormat `json:"format,omitempty" validate:"omitempty,oneof=json yaml toml env"`
-	Content       *string      `json:"content,omitempty" validate:"omitempty,min=1"`
-	Schema        JSONMap      `json:"schema,omitempty"`
-	DefaultValues JSONMap      `json:"default_values,omitempty"`
-	Version       *string      `json:"version,omitempty" validate:"omitempty,semver"`
-	EnvironmentID *int64       `json:"environment_id,omitempty"`
-	TagIDs        []int64      `json:"tag_ids,omitempty"`
-	Active        *bool        `json:"active,omitempty"`
-	UpdatedBy     string       `json:"updated_by" validate:"required"`
+	Content       *string       `json:"content,omitempty" validate:"omitempty,min=1"`
+	Schema        JSONMap       `json:"schema,omitempty"`
+	DefaultValues JSONMap       `json:"default_values,omitempty"`
+	Version       *string       `json:"version,omitempty" validate:"omitempty,semver"`
+	EnvironmentID *int64        `json:"environment_id,omitempty"`
+	TagIDs        []int64       `json:"tag_ids,omitempty"`
+	Active        *bool         `json:"active,omitempty"`
+	UpdatedBy     string        `json:"updated_by" validate:"required"`
 }
 
 // TemplateResponse represents template response
