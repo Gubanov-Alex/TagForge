@@ -10,7 +10,7 @@ env:
   GO_VERSION: '1.23'
   GOLANGCI_LINT_VERSION: 'v1.62.2'
 
-# Add required permissions for security scanning
+# Required permissions for security scanning
 permissions:
   contents: read
   security-events: write
@@ -21,7 +21,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
-    # Set working directory for all steps
     defaults:
       run:
         working-directory: ./config-service
@@ -77,6 +76,11 @@ jobs:
         migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/config_service_test?sslmode=disable" up
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/config_service_test?sslmode=disable
+
+    - name: Generate Swagger docs before tests
+      run: |
+        go install github.com/swaggo/swag/cmd/swag@latest
+        swag init -g cmd/server/main.go --output docs/swagger
 
     - name: Run tests
       run: go test -v -race -cover -coverprofile=coverage.out ./...
@@ -180,6 +184,11 @@ jobs:
           config-service/go.sum
           config-service/go.mod
 
+    - name: Generate Swagger docs
+      run: |
+        go install github.com/swaggo/swag/cmd/swag@latest
+        swag init -g cmd/server/main.go --output docs/swagger
+
     - name: Build binary
       run: |
         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
@@ -221,38 +230,4 @@ jobs:
       with:
         name: config-service-binary-${{ github.sha }}
         path: config-service/bin/config-service
-        retention-days: 30
-
-  documentation:
-    name: Generate Documentation
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ./config-service
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
-        cache-dependency-path: |
-          config-service/go.sum
-          config-service/go.mod
-
-    - name: Install swag
-      run: go install github.com/swaggo/swag/cmd/swag@latest
-
-    - name: Generate Swagger docs
-      run: swag init -g cmd/server/main.go --output docs/swagger
-
-    - name: Upload documentation artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: swagger-docs-${{ github.sha }}
-        path: config-service/docs/swagger/
         retention-days: 30

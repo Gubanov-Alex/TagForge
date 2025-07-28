@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	// Import docs for Swagger
+	// Import generated swagger docs
 	_ "github.com/company/config-service/docs/swagger"
 	"github.com/company/config-service/internal/api/health"
 	"github.com/company/config-service/internal/config"
@@ -41,7 +41,7 @@ var (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8081
+// @host localhost:8080
 // @BasePath /api/v1
 
 // @securityDefinitions.apikey BearerAuth
@@ -134,7 +134,7 @@ func main() {
 		router.GET(cfg.Metrics.Path, gin.WrapH(promhttp.Handler()))
 	}
 
-	// Swagger documentation
+	// Swagger documentation (only in non-production environments)
 	if cfg.Server.Environment != "production" {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
