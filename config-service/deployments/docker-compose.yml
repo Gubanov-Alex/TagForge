@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -118,7 +116,7 @@ services:
   config-service:
     build:
       context: ..
-      dockerfile: deployments/Dockerfile
+      dockerfile: config-service/deployments/Dockerfile
     container_name: config-service-app
     depends_on:
       postgres:
